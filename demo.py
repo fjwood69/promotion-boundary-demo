@@ -198,8 +198,8 @@ def walk(pause=False):
     print("  The full framework — every null, every receipt: https://moriapp.dev/pbgf")
     print()
     print("  ── other ways to run this ─────────────────────────────────────────")
-    print("     make table   just the three verdicts, no narration")
-    print("     make demo    this guided walk  (runs straight through when piped / in CI)")
+    print("     python demo.py --table   just the three verdicts, no narration")
+    print("     python demo.py           this guided walk (straight through when piped / in CI)")
     print()
     return 0 if results.get("output_b") == ("PASS", "FAIL") else 1
 

@@ -22,19 +22,17 @@ The demo is the doorway; **the receipts are in the [paper](https://moriapp.dev/p
 
 ```bash
 git clone https://github.com/fjwood69/promotion-boundary-demo && cd promotion-boundary-demo
-
-# any platform — nothing but Python 3.9+:
 python demo.py           # guided step-through — watch each check judge each version
 python demo.py --table   # or just the three verdicts, at a glance
-
-# Windows: use  py demo.py  if  python  isn't on your PATH.
-# macOS / Linux: the Make shortcuts  `make demo`  and  `make table`  do the same.
 ```
 
-`make demo` walks you through all three versions one at a time — showing the
+\* Needs Python 3.9+ on your `PATH` — nothing else. (On Windows, `py demo.py` if
+`python` isn't wired up.)
+
+`python demo.py` walks you through all three versions one at a time — showing the
 code, what the static check found, and a **live trace of each execution attempt**
-— so you *watch* the retry happen (or not). `make table` is the same result in a
-few lines:
+— so you *watch* the retry happen (or not). `python demo.py --table` is the same
+result in a few lines:
 
 ```
             static            runtime
