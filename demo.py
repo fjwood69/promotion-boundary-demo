@@ -18,6 +18,15 @@ import argparse
 import sys
 from pathlib import Path
 
+# Windows consoles default to a legacy code page (e.g. cp1252) that cannot encode
+# the box-drawing and ✓/✗ glyphs used below, which would raise UnicodeEncodeError
+# (notably when output is piped/redirected). Force UTF-8 so the demo runs
+# identically on Windows, macOS and Linux.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):  # non-standard stream; best-effort only
+    pass
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 

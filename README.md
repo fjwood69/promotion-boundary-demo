@@ -22,8 +22,13 @@ The demo is the doorway; **the receipts are in the [paper](https://moriapp.dev/p
 
 ```bash
 git clone https://github.com/fjwood69/promotion-boundary-demo && cd promotion-boundary-demo
-make demo          # guided step-through — watch each check judge each version
-make table         # or just the three verdicts, at a glance:
+
+# any platform — nothing but Python 3.9+:
+python demo.py           # guided step-through — watch each check judge each version
+python demo.py --table   # or just the three verdicts, at a glance
+
+# Windows: use  py demo.py  if  python  isn't on your PATH.
+# macOS / Linux: the Make shortcuts  `make demo`  and  `make table`  do the same.
 ```
 
 `make demo` walks you through all three versions one at a time — showing the
