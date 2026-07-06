@@ -16,6 +16,10 @@ One rule, three versions of the code, two checks. In under a minute, on your own
 machine, with nothing but Python, you'll watch a piece of code **pass a
 reasonable check that reads it, and fail the moment it's actually run.**
 
+This is one finding from a larger, pre-registered study — **~5,000 runs across a
+dozen models** on what can and can't actually be enforced on an AI coding agent.
+The demo is the doorway; **the receipts are in the [paper](https://moriapp.dev/pbgf).**
+
 ```bash
 git clone https://github.com/fjwood69/promotion-boundary-demo && cd promotion-boundary-demo
 make demo          # guided step-through — watch each check judge each version
@@ -74,8 +78,9 @@ by *checking*.
 - **`checks/runtime_check.py`** (the point) — doesn't read the source at all. It
   **executes** `check_health` against an injected transient failure and **counts
   how many times the call was actually attempted.** Two or more = it retried; one
-  = it didn't. It doesn't care *how* the retry is written, so there's no pattern to
-  evade.
+  = it didn't. It doesn't care *how* the retry is written, so there's no *structural*
+  pattern to evade (keying behaviour to the test is a separate attack — see *the
+  honest part*).
 
 ## Why this is the whole thesis
 
@@ -111,13 +116,21 @@ in the real gate:
    forge the counter. The production gate observes egress at the **sandbox
    boundary** (`--network=none` + host-side flow counting), from outside the
    container — the code can't see or tamper with it. (Output B here is a real
-   cross-function dataflow evasion; nastier ones — input-keying, egress-routing —
-   are what the boundary mechanism and the [paper](https://moriapp.dev/pbgf) address.)
+   cross-function dataflow evasion; egress-routing past the mock is what the
+   sandbox boundary addresses — *input-keying* is limitation 3 below.)
 2. **The rule is scoped to a `GET` on purpose.** "Retry every outbound call"
    would be *wrong* — blind-retrying a `POST /charge` double-charges the card.
    *Which* calls are safe to retry is a human judgement; *whether* a call marked
    safe actually retries is what a machine verifies. The gate enforces the
    second and never decides the first.
+3. **A runtime check is not a silver bullet either.** This demo injects a
+   *single, fixed* fault, so an adversary could *key* behaviour to the test —
+   retry only when it detects the harness (a known input, an env var, a test
+   hostname) and defect in production. Beating that needs what the real system
+   does: **vary the input and environment across trials, and treat "behaves
+   differently under observation" as a failure.** Running the code defeats
+   *structural* faking; defeating *keyed* faking needs varied execution, not one
+   fixed run.
 
 ## The research behind it
 
