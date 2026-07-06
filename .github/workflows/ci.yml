@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Reuses the shape of the mori CI (sterility + ruff lint), but the load-bearing
+# job here is `run`: it executes the demo on a bare Python matrix with NO
+# dependencies installed, which turns the "zero-dependency, runs anywhere" claim
+# into a green check. `ruff format --check` is deliberately omitted — the demo's
+# print-heavy source is hand-aligned for terminal readability, which is the point.
+
+jobs:
+  sterility:
+    name: Content sterility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: No internal / homelab / secret markers in tracked content
+        run: |
+          if grep -rniE 'nucadmin|piadmin|jadmin|10\.1\.2\.|uk-smr|ca-gcp|tailscale|dotfiles|get-secret|/home/[a-z]|api[_-]?key|password|bearer ' \
+              --include='*.py' --include='*.md' --include='Makefile' \
+              --exclude-dir=.git . ; then
+            echo "::error::internal/homelab marker found in tracked content"; exit 1
+          fi
+          echo "clean"
+
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: pip install "ruff==0.15.15"
+      - run: ruff check .
+
+  run:
+    name: Demo runs zero-dep (py ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      # -I -S: isolated interpreter, no site-packages — proves zero third-party deps.
+      # Exit code also asserts the core invariant (Output B == static PASS, runtime FAIL).
+      - name: Verdict table (isolated interpreter, no deps)
+        run: python -I -S demo.py --table
+      - name: Guided walk runs to completion when piped (CI-degrade path)
+        run: python demo.py > /dev/null
