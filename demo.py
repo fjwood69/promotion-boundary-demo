@@ -15,6 +15,7 @@ Usage:
     python3 demo.py --table    # just the summary verdict table (quick / CI)
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -26,6 +27,37 @@ try:
     sys.stdout.reconfigure(encoding="utf-8")
 except (AttributeError, ValueError):  # non-standard stream; best-effort only
     pass
+
+# ── colour (zero-dependency ANSI; green PASS / red FAIL) ────────────────────
+# Emitted only to an interactive terminal: OFF when piped, redirected, in CI, or
+# when NO_COLOR is set — so logs and `--table | …` stay plain. FORCE_COLOR=1
+# overrides. Enabled on Windows 10+ by turning on virtual-terminal processing.
+def _enable_colour():
+    if os.environ.get("NO_COLOR") is not None:
+        return False
+    force = os.environ.get("FORCE_COLOR") not in (None, "", "0")
+    if not force and (not sys.stdout.isatty() or os.environ.get("TERM") == "dumb"):
+        return False
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            k = ctypes.windll.kernel32
+            handle = k.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+            mode = ctypes.c_uint32()
+            if k.GetConsoleMode(handle, ctypes.byref(mode)):
+                k.SetConsoleMode(handle, mode.value | 0x0004)  # ENABLE_VT_PROCESSING
+        except Exception:
+            return False
+    return True
+
+
+_COLOUR = _enable_colour()
+
+
+def _paint(code, text):
+    return f"\033[{code}m{text}\033[0m" if (_COLOUR and code) else text
+
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -51,11 +83,20 @@ TREE = [
 
 
 _MARK = {"PASS": "✓", "FAIL": "✗", "ERROR": "⚠"}
+_VCODE = {"PASS": "32", "FAIL": "31", "ERROR": "33"}  # green / red / yellow
 
 
 def _v(verdict):
-    """Decorate a verdict with its symbol, e.g. 'PASS ✓' / 'FAIL ✗'."""
-    return f"{verdict} {_MARK.get(verdict, '')}".rstrip()
+    """'PASS ✓' / 'FAIL ✗' — green for PASS, red for FAIL (colour to a TTY only)."""
+    text = f"{verdict} {_MARK.get(verdict, '')}".rstrip()
+    return _paint(_VCODE.get(verdict, ""), text)
+
+
+def _vpad(verdict, width):
+    """Verdict padded to a visible width, THEN coloured — ANSI escapes must not
+    count toward the column width, so the plain text is padded first."""
+    plain = f"{verdict} {_MARK.get(verdict, '')}".rstrip()
+    return _paint(_VCODE.get(verdict, ""), f"{plain:<{width}}")
 
 
 def _source_of(name):
@@ -89,7 +130,7 @@ def _agents_rule():
 
 def _header(title):
     print("  " + "═" * 66)
-    print(f"  {title}")
+    print("  " + _paint("1;94", title))  # bright blue — section wayfinding
     print("  " + "═" * 66)
     print()
 
@@ -97,7 +138,7 @@ def _header(title):
 # ── step-through (default) ──────────────────────────────────────────────────
 def walk(pause=False):
     print()
-    print("  Promotion-Boundary Demo")
+    print("  " + _paint("1;94", "Promotion-Boundary Demo"))
     print()
     print("  ┃ Demonstrating a mechanism, not a gate. This demo runs the check in-process")
     print("  ┃ for zero-dependency teaching. The real enforcement gate runs the code in an")
@@ -207,7 +248,7 @@ def walk(pause=False):
 # ── terse table (--table) ───────────────────────────────────────────────────
 def table():
     print()
-    print("  Promotion-Boundary Demo")
+    print("  " + _paint("1;94", "Promotion-Boundary Demo"))
     print()
     print(f"  {'':10}{'static':18}{'runtime':18}")
     print(f"  {'':10}{'(reads the code)':18}{'(runs the code)':18}")
@@ -217,8 +258,8 @@ def table():
         s, _ = static_check.check(str(HERE / "artifacts" / f"{name}.py"))
         r, _2 = runtime_check.check(name)
         rows[name] = (s, r)
-        flag = "◄ caught only by running it" if (s == "PASS" and r == "FAIL") else ""
-        print(f"  {label:10}{_v(s):18}{_v(r):10}{flag}")
+        flag = _paint("31", "◄ caught only by running it") if (s == "PASS" and r == "FAIL") else ""
+        print(f"  {label:10}" + _vpad(s, 18) + _vpad(r, 10) + flag)
     print("  " + "─" * 50)
     print("  Static checks what the code LOOKS LIKE; runtime checks what it DOES.")
     print("  moriapp.dev/pbgf")
