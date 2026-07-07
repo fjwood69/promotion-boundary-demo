@@ -71,6 +71,13 @@ ARTEFACTS = [
     ("output_b", "Output B"),
     ("output_c", "Output C"),
 ]
+_LABEL = dict(ARTEFACTS)
+
+# The --table view lists them A/B/C — the plain alphabetical scan. The guided walk
+# reveals them A → C → B on purpose: establish the two unambiguous cases first
+# (real retry, then no retry at all), and land on Output B — the one where the two
+# checks disagree — last. Matches the README's "three versions" description order.
+WALK_ORDER = ["output_a", "output_c", "output_b"]
 
 TREE = [
     ("AGENTS.md",               "the rule the agent must follow"),
@@ -107,13 +114,21 @@ def _source_of(name):
     return "\n".join(lines[start:]).rstrip("\n")
 
 
+def _clear():
+    """Clear the screen so each section starts at the top of the terminal — only
+    to an interactive TTY (never when piped / redirected / in CI). cls on Windows,
+    clear elsewhere; keeps the guided walk framed cleanly for a screen recording."""
+    if sys.stdout.isatty():
+        os.system("cls" if os.name == "nt" else "clear")
+
+
 def _pause(pause, prompt="        [enter] to continue → "):
     if pause and sys.stdin.isatty():
         try:
             input(prompt)
-            print()
         except EOFError:
-            pass
+            return
+        _clear()
 
 
 def _agents_rule():
@@ -137,19 +152,21 @@ def _header(title):
 
 # ── step-through (default) ──────────────────────────────────────────────────
 def walk(pause=False):
+    _clear()  # start the guided walk on a clean screen (interactive TTY only)
     print()
     print("  " + _paint("1;94", "Promotion-Boundary Demo"))
     print()
-    print("  ┃ Demonstrating a mechanism, not a gate. This demo runs the check in-process")
-    print("  ┃ for zero-dependency teaching. The real enforcement gate runs the code in an")
-    print("  ┃ isolated sandbox at the merge boundary and counts network egress from")
-    print("  ┃ outside the container — the code can't tamper with the verdict because it")
-    print("  ┃ doesn't share the process. Why that matters: https://moriapp.dev/pbgf")
+    print("  ┃ This is a demonstration, not the real gate. To stay zero-dependency, the")
+    print("  ┃ demo runs the runtime check in-process. The production gate is designed to")
+    print("  ┃ run your code in an isolated sandbox at the merge boundary, where it can't")
+    print("  ┃ see or tamper with the check watching it.")
+    print("  ┃")
+    print("  ┃ Why that matters → https://moriapp.dev/pbgf")
     print()
 
     _header("THE SCENARIO — what we need the agent to do")
     print("  You ask a coding agent to add a readiness probe: a small function that")
-    print("  GETs a service's /health endpoint to confirm it is alive. Networks blip,")
+    print("  checks a service's /health endpoint to confirm it is alive. Networks blip,")
     print('  so a probe that gives up on the first hiccup flaps the service as "down"')
     print("  constantly. It has to survive a transient failure — and whether it does")
     print("  is a rule someone has to write down and enforce.")
@@ -182,7 +199,8 @@ def walk(pause=False):
     _header("THE OUTCOME — two checks judge each version")
 
     results = {}
-    for i, (name, label) in enumerate(ARTEFACTS, 1):
+    for i, name in enumerate(WALK_ORDER, 1):
+        label = _LABEL[name]
         print("  " + "━" * 66)
         print(f"  {i}/3   {label}")
         print("  " + "━" * 66)
@@ -219,7 +237,7 @@ def walk(pause=False):
         print()
         _pause(pause, "        [enter] for the next version → ")
 
-    print("  " + "═" * 66)
+    _header("THE POINT — what it looks like vs what it does")
     print("  The static check judged what the code LOOKS LIKE. The runtime check")
     print("  judged what it DOES. On Output B, they disagreed — same file.")
     print()

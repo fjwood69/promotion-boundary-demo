@@ -7,9 +7,10 @@ enough — and what checking what your code *does* looks like.**
 > — **what the code looks like vs what it does** — visible in ~210 lines of
 > dependency-free Python you can read in a sitting. Two things it is deliberately
 > **not**: it is **not** "static analysis is useless" (the static check here
-> catches the obvious violation), and it is **not** production enforcement — it
-> runs the code *in-process*, which the real gate replaces with **sandbox-boundary**
-> observation the code under test cannot see or tamper with. Both limits are
+> catches the obvious violation), and it is **not** the real gate — to stay
+> zero-dependency it runs the runtime check *in-process*, where the production
+> gate is designed to run your code in an **isolated sandbox at the merge
+> boundary**, where it can't see or tamper with the check watching it. Both limits are
 > explained below and in the [paper](https://moriapp.dev/pbgf).
 
 One rule, three versions of the code, two checks. In under a minute, on your own
@@ -107,6 +108,23 @@ coding agent under pressure is that adversary by default. The runtime check isn'
 matching a pattern. It asserts an **operational invariant** — *"under repeated
 failure, the call is attempted ≥ 2×"* — that holds regardless of how the code is
 written. There is nothing structural to fake.
+
+## "Isn't this just an integration test?"
+
+Mechanically, yes — it runs the code and asserts on behaviour. The difference
+isn't the test, it's the **threat model.** An integration test assumes the author
+and the check are on the same side: a failure is a mistake to fix, and nobody's
+writing code that tries to pass the test while dropping its intent. Here the author
+is an agent optimising for *"task complete,"* and Output B is what that produces by
+default — code that satisfies the structure and drops the behaviour, **no malice
+required.** So the same mechanical check has to hold when the author is effectively
+optimising to pass it falsely — and it's positioned as a **gate on merge**, not an
+advisory test a human reads and can edit. Same mechanism; different threat model;
+different job.
+
+And reusing a boring, proven mechanism rather than inventing an exotic one is the
+point, not a weakness: the novelty is narrow and deliberate — **relocate a known
+check to the promotion boundary, harden it against an author optimising past it.**
 
 ## The honest part
 
